@@ -5,11 +5,9 @@ import { Card } from "@/components/ui/card";
 import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { Article, Literal } from "@/types/normative";
 import { LiteralItem } from "./LiteralItem";
-import { useSortable, SortableContext } from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
-import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
 
 interface ArticleSectionProps {
   article: Article;
@@ -35,28 +33,6 @@ export const ArticleSection = ({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-  };
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
-
-  const handleDragEndLiterals = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const activeLiteralIndex = article.literals.findIndex(l => l.id === active.id);
-    const overLiteralIndex = article.literals.findIndex(l => l.id === over.id);
-
-    if (activeLiteralIndex !== -1 && overLiteralIndex !== -1) {
-      const reorderedLiterals = arrayMove(article.literals, activeLiteralIndex, overLiteralIndex);
-      onUpdate({ ...article, literals: reorderedLiterals });
-      toast.success("Literal reordenado");
-    }
   };
 
   const addLiteral = () => {
@@ -107,30 +83,26 @@ export const ArticleSection = ({
         {/* Literals */}
         {article.literals.length > 0 && (
           <div className="ml-8 space-y-2 mb-3">
-            <DndContext sensors={sensors} onDragEnd={handleDragEndLiterals}>
-              <SortableContext items={article.literals.map(l => l.id)}>
-                {article.literals.map((literal, index) => (
-                  <LiteralItem
-                    key={literal.id}
-                    literal={literal}
-                    index={index}
-                    onUpdate={(updated) => {
-                      const updatedLiterals = article.literals.map((l) =>
-                        l.id === updated.id ? updated : l
-                      );
-                      onUpdate({ ...article, literals: updatedLiterals });
-                    }}
-                    onDelete={(id) => {
-                      onUpdate({
-                        ...article,
-                        literals: article.literals.filter((l) => l.id !== id),
-                      });
-                      toast.success("Literal eliminado");
-                    }}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
+            {article.literals.map((literal, index) => (
+              <LiteralItem
+                key={literal.id}
+                literal={literal}
+                index={index}
+                onUpdate={(updated) => {
+                  const updatedLiterals = article.literals.map((l) =>
+                    l.id === updated.id ? updated : l
+                  );
+                  onUpdate({ ...article, literals: updatedLiterals });
+                }}
+                onDelete={(id) => {
+                  onUpdate({
+                    ...article,
+                    literals: article.literals.filter((l) => l.id !== id),
+                  });
+                  toast.success("Literal eliminado");
+                }}
+              />
+            ))}
           </div>
         )}
 

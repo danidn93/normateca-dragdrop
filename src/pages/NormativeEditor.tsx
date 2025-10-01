@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { NormativeToolbar } from "@/components/normative/NormativeToolbar";
 import { ChapterSection } from "@/components/normative/ChapterSection";
-import { ArticleSection } from "@/components/normative/ArticleSection";
+import { StandaloneArticlesArea } from "@/components/normative/StandaloneArticlesArea";
 import { VersionHistory } from "@/components/normative/VersionHistory";
 import { Normative, Chapter, Article } from "@/types/normative";
 import {
@@ -25,6 +25,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  closestCenter,
+  DragOverEvent,
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext } from "@dnd-kit/sortable";
 import { toast } from "sonner";
@@ -34,6 +36,7 @@ const NormativeEditor = () => {
   const { id } = useParams();
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeType, setActiveType] = useState<"chapter" | "title" | "article" | "literal" | null>(null);
 
   // Demo normative data
   const [normative, setNormative] = useState<Normative>({
@@ -94,18 +97,68 @@ const NormativeEditor = () => {
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+    const { active } = event;
+    setActiveId(active.id as string);
+    
+    // Determine type
+    const id = active.id as string;
+    if (normative.chapters.some(ch => ch.id === id)) {
+      setActiveType("chapter");
+    } else if (normative.chapters.some(ch => ch.titles.some(t => t.id === id))) {
+      setActiveType("title");
+    } else {
+      setActiveType("article");
+    }
+  };
+
+  const findArticleLocation = (articleId: string): { 
+    chapterIndex: number; 
+    titleIndex: number; 
+    articleIndex: number;
+    type: "standalone" | "chapter" | "title";
+  } | null => {
+    // Check standalone articles
+    const standaloneIndex = normative.articles.findIndex(a => a.id === articleId);
+    if (standaloneIndex !== -1) {
+      return { chapterIndex: -1, titleIndex: -1, articleIndex: standaloneIndex, type: "standalone" };
+    }
+
+    // Check in chapters
+    for (let chIdx = 0; chIdx < normative.chapters.length; chIdx++) {
+      const chapter = normative.chapters[chIdx];
+      
+      // Check chapter articles
+      const chArticleIdx = chapter.articles.findIndex(a => a.id === articleId);
+      if (chArticleIdx !== -1) {
+        return { chapterIndex: chIdx, titleIndex: -1, articleIndex: chArticleIdx, type: "chapter" };
+      }
+
+      // Check title articles
+      for (let tIdx = 0; tIdx < chapter.titles.length; tIdx++) {
+        const title = chapter.titles[tIdx];
+        const tArticleIdx = title.articles.findIndex(a => a.id === articleId);
+        if (tArticleIdx !== -1) {
+          return { chapterIndex: chIdx, titleIndex: tIdx, articleIndex: tArticleIdx, type: "title" };
+        }
+      }
+    }
+
+    return null;
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
+    setActiveType(null);
 
     if (!over || active.id === over.id) return;
 
-    // Reorder chapters
-    const activeChapterIndex = normative.chapters.findIndex(ch => ch.id === active.id);
-    const overChapterIndex = normative.chapters.findIndex(ch => ch.id === over.id);
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Handle chapter reordering
+    const activeChapterIndex = normative.chapters.findIndex(ch => ch.id === activeId);
+    const overChapterIndex = normative.chapters.findIndex(ch => ch.id === overId);
 
     if (activeChapterIndex !== -1 && overChapterIndex !== -1) {
       const reorderedChapters = arrayMove(normative.chapters, activeChapterIndex, overChapterIndex);
@@ -114,14 +167,69 @@ const NormativeEditor = () => {
       return;
     }
 
-    // Reorder standalone articles
-    const activeArticleIndex = normative.articles.findIndex(a => a.id === active.id);
-    const overArticleIndex = normative.articles.findIndex(a => a.id === over.id);
+    // Handle article movement
+    const activeLocation = findArticleLocation(activeId);
+    if (activeLocation) {
+      let article: Article | null = null;
 
-    if (activeArticleIndex !== -1 && overArticleIndex !== -1) {
-      const reorderedArticles = arrayMove(normative.articles, activeArticleIndex, overArticleIndex);
-      setNormative({ ...normative, articles: reorderedArticles });
-      toast.success("Artículo reordenado");
+      // Extract the article from its current location
+      const newNormative = { ...normative };
+      
+      if (activeLocation.type === "standalone") {
+        article = newNormative.articles[activeLocation.articleIndex];
+        newNormative.articles.splice(activeLocation.articleIndex, 1);
+      } else if (activeLocation.type === "chapter") {
+        article = newNormative.chapters[activeLocation.chapterIndex].articles[activeLocation.articleIndex];
+        newNormative.chapters[activeLocation.chapterIndex].articles.splice(activeLocation.articleIndex, 1);
+      } else if (activeLocation.type === "title") {
+        article = newNormative.chapters[activeLocation.chapterIndex].titles[activeLocation.titleIndex].articles[activeLocation.articleIndex];
+        newNormative.chapters[activeLocation.chapterIndex].titles[activeLocation.titleIndex].articles.splice(activeLocation.articleIndex, 1);
+      }
+
+      if (!article) return;
+
+      // Determine where to drop
+      // Check if dropping on a chapter
+      const targetChapterIndex = newNormative.chapters.findIndex(ch => ch.id === overId);
+      if (targetChapterIndex !== -1) {
+        newNormative.chapters[targetChapterIndex].articles.push(article);
+        setNormative(newNormative);
+        toast.success("Artículo movido al capítulo");
+        return;
+      }
+
+      // Check if dropping on a title
+      for (let chIdx = 0; chIdx < newNormative.chapters.length; chIdx++) {
+        const titleIndex = newNormative.chapters[chIdx].titles.findIndex(t => t.id === overId);
+        if (titleIndex !== -1) {
+          newNormative.chapters[chIdx].titles[titleIndex].articles.push(article);
+          setNormative(newNormative);
+          toast.success("Artículo movido al título");
+          return;
+        }
+      }
+
+      // Check if dropping on standalone articles area
+      if (overId === "standalone-articles-area") {
+        newNormative.articles.push(article);
+        setNormative(newNormative);
+        toast.success("Artículo movido a independientes");
+        return;
+      }
+
+      // If dropping on another article, insert near it
+      const targetLocation = findArticleLocation(overId);
+      if (targetLocation) {
+        if (targetLocation.type === "standalone") {
+          newNormative.articles.splice(targetLocation.articleIndex, 0, article);
+        } else if (targetLocation.type === "chapter") {
+          newNormative.chapters[targetLocation.chapterIndex].articles.splice(targetLocation.articleIndex, 0, article);
+        } else if (targetLocation.type === "title") {
+          newNormative.chapters[targetLocation.chapterIndex].titles[targetLocation.titleIndex].articles.splice(targetLocation.articleIndex, 0, article);
+        }
+        setNormative(newNormative);
+        toast.success("Artículo reordenado");
+      }
     }
   };
 
@@ -238,67 +346,53 @@ const NormativeEditor = () => {
               sensors={sensors}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
+              collisionDetection={closestCenter}
             >
               <div className="space-y-6 mt-6">
                 {/* Chapters */}
-                <SortableContext items={normative.chapters.map((ch) => ch.id)}>
-                  {normative.chapters.map((chapter) => (
-                    <ChapterSection
-                      key={chapter.id}
-                      chapter={chapter}
-                      onUpdate={(updated) => {
-                        const updatedChapters = normative.chapters.map((ch) =>
-                          ch.id === updated.id ? updated : ch
-                        );
-                        setNormative({ ...normative, chapters: updatedChapters });
-                      }}
-                      onDelete={(id) => {
-                        setNormative({
-                          ...normative,
-                          chapters: normative.chapters.filter((ch) => ch.id !== id),
-                        });
-                        toast.success("Capítulo eliminado");
-                      }}
-                    />
-                  ))}
-                </SortableContext>
+                {normative.chapters.map((chapter) => (
+                  <ChapterSection
+                    key={chapter.id}
+                    chapter={chapter}
+                    onUpdate={(updated) => {
+                      const updatedChapters = normative.chapters.map((ch) =>
+                        ch.id === updated.id ? updated : ch
+                      );
+                      setNormative({ ...normative, chapters: updatedChapters });
+                    }}
+                    onDelete={(id) => {
+                      setNormative({
+                        ...normative,
+                        chapters: normative.chapters.filter((ch) => ch.id !== id),
+                      });
+                      toast.success("Capítulo eliminado");
+                    }}
+                  />
+                ))}
 
                 {/* Standalone Articles */}
-                {normative.articles.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-legal-article flex items-center gap-2">
-                      <BookOpen className="h-5 w-5" />
-                      Artículos Independientes
-                    </h3>
-                    <SortableContext items={normative.articles.map((a) => a.id)}>
-                      {normative.articles.map((article) => (
-                        <ArticleSection
-                          key={article.id}
-                          article={article}
-                          onUpdate={(updated) => {
-                            const updatedArticles = normative.articles.map((a) =>
-                              a.id === updated.id ? updated : a
-                            );
-                            setNormative({ ...normative, articles: updatedArticles });
-                          }}
-                          onDelete={(id) => {
-                            setNormative({
-                              ...normative,
-                              articles: normative.articles.filter((a) => a.id !== id),
-                            });
-                            toast.success("Artículo eliminado");
-                          }}
-                        />
-                      ))}
-                    </SortableContext>
-                  </div>
-                )}
+                <StandaloneArticlesArea 
+                  articles={normative.articles}
+                  onUpdate={(updated) => {
+                    const updatedArticles = normative.articles.map((a) =>
+                      a.id === updated.id ? updated : a
+                    );
+                    setNormative({ ...normative, articles: updatedArticles });
+                  }}
+                  onDelete={(id) => {
+                    setNormative({
+                      ...normative,
+                      articles: normative.articles.filter((a) => a.id !== id),
+                    });
+                    toast.success("Artículo eliminado");
+                  }}
+                />
               </div>
 
               <DragOverlay>
                 {activeId ? (
-                  <div className="bg-card p-4 rounded-lg shadow-elevated border border-border">
-                    Arrastrando elemento...
+                  <div className="bg-card p-4 rounded-lg shadow-elevated border-2 border-primary">
+                    <p className="font-semibold">Arrastrando {activeType}...</p>
                   </div>
                 ) : null}
               </DragOverlay>

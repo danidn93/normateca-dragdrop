@@ -14,11 +14,10 @@ import {
 import { Chapter, Title, Article } from "@/types/normative";
 import { TitleSection } from "./TitleSection";
 import { ArticleSection } from "./ArticleSection";
-import { useSortable, SortableContext } from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
-import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
 
 interface ChapterSectionProps {
   chapter: Chapter;
@@ -41,46 +40,14 @@ export const ChapterSection = ({
     isDragging,
   } = useSortable({ id: chapter.id });
 
+  const { setNodeRef: setDroppableRef } = useDroppable({
+    id: chapter.id,
+  });
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-  };
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
-
-  const handleDragEndTitles = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const activeTitleIndex = chapter.titles.findIndex(t => t.id === active.id);
-    const overTitleIndex = chapter.titles.findIndex(t => t.id === over.id);
-
-    if (activeTitleIndex !== -1 && overTitleIndex !== -1) {
-      const reorderedTitles = arrayMove(chapter.titles, activeTitleIndex, overTitleIndex);
-      onUpdate({ ...chapter, titles: reorderedTitles });
-      toast.success("Título reordenado");
-    }
-  };
-
-  const handleDragEndArticles = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const activeArticleIndex = chapter.articles.findIndex(a => a.id === active.id);
-    const overArticleIndex = chapter.articles.findIndex(a => a.id === over.id);
-
-    if (activeArticleIndex !== -1 && overArticleIndex !== -1) {
-      const reorderedArticles = arrayMove(chapter.articles, activeArticleIndex, overArticleIndex);
-      onUpdate({ ...chapter, articles: reorderedArticles });
-      toast.success("Artículo reordenado");
-    }
   };
 
   const addTitle = () => {
@@ -107,7 +74,10 @@ export const ChapterSection = ({
   };
 
   return (
-    <Card ref={setNodeRef} style={style} className="overflow-hidden">
+    <Card ref={(node) => {
+      setNodeRef(node);
+      setDroppableRef(node);
+    }} style={style} className="overflow-hidden">
       {/* Chapter Header */}
       <div className="bg-gradient-header p-4">
         <div className="flex items-center gap-3">
@@ -162,54 +132,46 @@ export const ChapterSection = ({
           </div>
 
           {/* Titles */}
-          <DndContext sensors={sensors} onDragEnd={handleDragEndTitles}>
-            <SortableContext items={chapter.titles.map(t => t.id)}>
-              {chapter.titles.map((title) => (
-                <TitleSection
-                  key={title.id}
-                  title={title}
-                  onUpdate={(updated) => {
-                    const updatedTitles = chapter.titles.map((t) =>
-                      t.id === updated.id ? updated : t
-                    );
-                    onUpdate({ ...chapter, titles: updatedTitles });
-                  }}
-                  onDelete={(id) => {
-                    onUpdate({
-                      ...chapter,
-                      titles: chapter.titles.filter((t) => t.id !== id),
-                    });
-                    toast.success("Título eliminado");
-                  }}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
+          {chapter.titles.map((title) => (
+            <TitleSection
+              key={title.id}
+              title={title}
+              onUpdate={(updated) => {
+                const updatedTitles = chapter.titles.map((t) =>
+                  t.id === updated.id ? updated : t
+                );
+                onUpdate({ ...chapter, titles: updatedTitles });
+              }}
+              onDelete={(id) => {
+                onUpdate({
+                  ...chapter,
+                  titles: chapter.titles.filter((t) => t.id !== id),
+                });
+                toast.success("Título eliminado");
+              }}
+            />
+          ))}
 
           {/* Chapter Articles */}
-          <DndContext sensors={sensors} onDragEnd={handleDragEndArticles}>
-            <SortableContext items={chapter.articles.map(a => a.id)}>
-              {chapter.articles.map((article) => (
-                <ArticleSection
-                  key={article.id}
-                  article={article}
-                  onUpdate={(updated) => {
-                    const updatedArticles = chapter.articles.map((a) =>
-                      a.id === updated.id ? updated : a
-                    );
-                    onUpdate({ ...chapter, articles: updatedArticles });
-                  }}
-                  onDelete={(id) => {
-                    onUpdate({
-                      ...chapter,
-                      articles: chapter.articles.filter((a) => a.id !== id),
-                    });
-                    toast.success("Artículo eliminado");
-                  }}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
+          {chapter.articles.map((article) => (
+            <ArticleSection
+              key={article.id}
+              article={article}
+              onUpdate={(updated) => {
+                const updatedArticles = chapter.articles.map((a) =>
+                  a.id === updated.id ? updated : a
+                );
+                onUpdate({ ...chapter, articles: updatedArticles });
+              }}
+              onDelete={(id) => {
+                onUpdate({
+                  ...chapter,
+                  articles: chapter.articles.filter((a) => a.id !== id),
+                });
+                toast.success("Artículo eliminado");
+              }}
+            />
+          ))}
         </div>
       )}
     </Card>
