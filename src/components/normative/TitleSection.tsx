@@ -5,9 +5,11 @@ import { Card } from "@/components/ui/card";
 import { GripVertical, Plus, Trash2, FileText } from "lucide-react";
 import { Title, Article } from "@/types/normative";
 import { ArticleSection } from "./ArticleSection";
-import { useSortable } from "@dnd-kit/sortable";
+import { useSortable, SortableContext } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
+import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
 
 interface TitleSectionProps {
   title: Title;
@@ -33,6 +35,28 @@ export const TitleSection = ({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  const handleDragEndArticles = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const activeArticleIndex = title.articles.findIndex(a => a.id === active.id);
+    const overArticleIndex = title.articles.findIndex(a => a.id === over.id);
+
+    if (activeArticleIndex !== -1 && overArticleIndex !== -1) {
+      const reorderedArticles = arrayMove(title.articles, activeArticleIndex, overArticleIndex);
+      onUpdate({ ...title, articles: reorderedArticles });
+      toast.success("Artículo reordenado");
+    }
   };
 
   const addArticle = () => {
@@ -80,25 +104,29 @@ export const TitleSection = ({
           Agregar Artículo
         </Button>
 
-        {title.articles.map((article) => (
-          <ArticleSection
-            key={article.id}
-            article={article}
-            onUpdate={(updated) => {
-              const updatedArticles = title.articles.map((a) =>
-                a.id === updated.id ? updated : a
-              );
-              onUpdate({ ...title, articles: updatedArticles });
-            }}
-            onDelete={(id) => {
-              onUpdate({
-                ...title,
-                articles: title.articles.filter((a) => a.id !== id),
-              });
-              toast.success("Artículo eliminado");
-            }}
-          />
-        ))}
+        <DndContext sensors={sensors} onDragEnd={handleDragEndArticles}>
+          <SortableContext items={title.articles.map(a => a.id)}>
+            {title.articles.map((article) => (
+              <ArticleSection
+                key={article.id}
+                article={article}
+                onUpdate={(updated) => {
+                  const updatedArticles = title.articles.map((a) =>
+                    a.id === updated.id ? updated : a
+                  );
+                  onUpdate({ ...title, articles: updatedArticles });
+                }}
+                onDelete={(id) => {
+                  onUpdate({
+                    ...title,
+                    articles: title.articles.filter((a) => a.id !== id),
+                  });
+                  toast.success("Artículo eliminado");
+                }}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
       </div>
     </Card>
   );

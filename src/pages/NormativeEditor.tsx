@@ -103,8 +103,26 @@ const NormativeEditor = () => {
 
     if (!over || active.id === over.id) return;
 
-    // Handle reordering logic here
-    toast.success("Elemento reordenado correctamente");
+    // Reorder chapters
+    const activeChapterIndex = normative.chapters.findIndex(ch => ch.id === active.id);
+    const overChapterIndex = normative.chapters.findIndex(ch => ch.id === over.id);
+
+    if (activeChapterIndex !== -1 && overChapterIndex !== -1) {
+      const reorderedChapters = arrayMove(normative.chapters, activeChapterIndex, overChapterIndex);
+      setNormative({ ...normative, chapters: reorderedChapters });
+      toast.success("Capítulo reordenado");
+      return;
+    }
+
+    // Reorder standalone articles
+    const activeArticleIndex = normative.articles.findIndex(a => a.id === active.id);
+    const overArticleIndex = normative.articles.findIndex(a => a.id === over.id);
+
+    if (activeArticleIndex !== -1 && overArticleIndex !== -1) {
+      const reorderedArticles = arrayMove(normative.articles, activeArticleIndex, overArticleIndex);
+      setNormative({ ...normative, articles: reorderedArticles });
+      toast.success("Artículo reordenado");
+    }
   };
 
   const addChapter = () => {
