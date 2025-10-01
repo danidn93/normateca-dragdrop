@@ -57,6 +57,19 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        legal: {
+          chapter: "hsl(var(--legal-chapter))",
+          title: "hsl(var(--legal-title))",
+          article: "hsl(var(--legal-article))",
+          literal: "hsl(var(--legal-literal))",
+        },
+      },
+      backgroundImage: {
+        "gradient-header": "var(--gradient-header)",
+      },
+      boxShadow: {
+        elevated: "var(--shadow-elevated)",
+        card: "var(--shadow-card)",
       },
       borderRadius: {
         lg: "var(--radius)",
