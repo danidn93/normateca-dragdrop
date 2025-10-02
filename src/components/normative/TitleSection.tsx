@@ -2,13 +2,18 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { GripVertical, Plus, Trash2, FileText } from "lucide-react";
+import { GripVertical, Plus, Trash2, FileText, ChevronDown, ChevronRight } from "lucide-react";
 import { Title, Article } from "@/types/normative";
 import { ArticleSection } from "./ArticleSection";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { useDroppable } from "@dnd-kit/core";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface TitleSectionProps {
   title: Title;
@@ -21,6 +26,7 @@ export const TitleSection = ({
   onUpdate,
   onDelete,
 }: TitleSectionProps) => {
+  const [isOpen, setIsOpen] = useState(true);
   const {
     attributes,
     listeners,
@@ -53,61 +59,79 @@ export const TitleSection = ({
   };
 
   return (
-    <Card ref={(node) => {
-      setNodeRef(node);
-      setDroppableRef(node);
-    }} style={style} className="ml-6 border-l-4 border-l-legal-title">
-      <div className="bg-secondary/30 p-3">
-        <div className="flex items-center gap-3">
-          <button
-            {...attributes}
-            {...listeners}
-            className="cursor-grab active:cursor-grabbing touch-none"
-          >
-            <GripVertical className="h-5 w-5 text-muted-foreground" />
-          </button>
-          <Input
-            value={title.name}
-            onChange={(e) => onUpdate({ ...title, name: e.target.value })}
-            className="flex-1 font-semibold bg-transparent border-none text-legal-title shadow-none focus-visible:ring-0"
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onDelete(title.id)}
-            className="hover:bg-destructive hover:text-destructive-foreground"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card 
+        id={title.id}
+        ref={(node) => {
+          setNodeRef(node);
+          setDroppableRef(node);
+        }} 
+        style={style} 
+        className="ml-6 border-l-4 border-l-legal-title"
+      >
+        <div className="bg-secondary/30 p-3">
+          <div className="flex items-center gap-3">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6">
+                {isOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
+            <button
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing touch-none"
+            >
+              <GripVertical className="h-5 w-5 text-muted-foreground" />
+            </button>
+            <Input
+              value={title.name}
+              onChange={(e) => onUpdate({ ...title, name: e.target.value })}
+              className="flex-1 font-semibold bg-transparent border-none text-legal-title shadow-none focus-visible:ring-0"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(title.id)}
+              className="hover:bg-destructive hover:text-destructive-foreground"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="p-4 space-y-3">
-        <Button variant="outline" size="sm" onClick={addArticle}>
-          <FileText className="mr-2 h-4 w-4" />
-          Agregar Artículo
-        </Button>
+        <CollapsibleContent>
+          <div className="p-4 space-y-3">
+            <Button variant="outline" size="sm" onClick={addArticle}>
+              <FileText className="mr-2 h-4 w-4" />
+              Agregar Artículo
+            </Button>
 
-        {title.articles.map((article) => (
-          <ArticleSection
-            key={article.id}
-            article={article}
-            onUpdate={(updated) => {
-              const updatedArticles = title.articles.map((a) =>
-                a.id === updated.id ? updated : a
-              );
-              onUpdate({ ...title, articles: updatedArticles });
-            }}
-            onDelete={(id) => {
-              onUpdate({
-                ...title,
-                articles: title.articles.filter((a) => a.id !== id),
-              });
-              toast.success("Artículo eliminado");
-            }}
-          />
-        ))}
-      </div>
-    </Card>
+            {title.articles.map((article) => (
+              <ArticleSection
+                key={article.id}
+                article={article}
+                onUpdate={(updated) => {
+                  const updatedArticles = title.articles.map((a) =>
+                    a.id === updated.id ? updated : a
+                  );
+                  onUpdate({ ...title, articles: updatedArticles });
+                }}
+                onDelete={(id) => {
+                  onUpdate({
+                    ...title,
+                    articles: title.articles.filter((a) => a.id !== id),
+                  });
+                  toast.success("Artículo eliminado");
+                }}
+              />
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 };

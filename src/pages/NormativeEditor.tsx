@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,8 @@ import { NormativeToolbar } from "@/components/normative/NormativeToolbar";
 import { ChapterSection } from "@/components/normative/ChapterSection";
 import { StandaloneArticlesArea } from "@/components/normative/StandaloneArticlesArea";
 import { VersionHistory } from "@/components/normative/VersionHistory";
+import { SearchBar } from "@/components/normative/SearchBar";
+import { NavigationPanel } from "@/components/normative/NavigationPanel";
 import { Normative, Chapter, Article } from "@/types/normative";
 import {
   DndContext,
@@ -37,12 +39,13 @@ const NormativeEditor = () => {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<"chapter" | "title" | "article" | "literal" | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Demo normative data
+  // Demo normative data - Normativa completa
   const [normative, setNormative] = useState<Normative>({
     id: id || "new",
     name: "Reglamento Interno de Trabajo",
-    description: "Normativa que regula las relaciones laborales internas",
+    description: "Normativa que regula las relaciones laborales internas de la institución",
     chapters: [
       {
         id: "ch1",
@@ -57,10 +60,175 @@ const NormativeEditor = () => {
               {
                 id: "a1",
                 number: "Art. 1",
-                content: "El presente reglamento tiene por objeto establecer las normas...",
+                content: "El presente reglamento tiene por objeto establecer las normas que regirán las relaciones laborales entre la institución y sus trabajadores.",
                 literals: [
                   { id: "l1", content: "Aplicable a todo el personal de la institución", order: 0 },
                   { id: "l2", content: "Incluye personal permanente y temporal", order: 1 },
+                  { id: "l3", content: "Rige para todas las áreas y departamentos", order: 2 },
+                ],
+                order: 0,
+              },
+              {
+                id: "a2",
+                number: "Art. 2",
+                content: "El ámbito de aplicación del presente reglamento abarca todas las instalaciones y dependencias de la institución.",
+                literals: [
+                  { id: "l4", content: "Oficinas centrales y sucursales", order: 0 },
+                  { id: "l5", content: "Instalaciones industriales y administrativas", order: 1 },
+                ],
+                order: 1,
+              },
+            ],
+          },
+          {
+            id: "t2",
+            name: "TÍTULO II - Definiciones",
+            order: 1,
+            articles: [
+              {
+                id: "a3",
+                number: "Art. 3",
+                content: "Para efectos del presente reglamento se entenderá por:",
+                literals: [
+                  { id: "l6", content: "Trabajador: Toda persona que preste sus servicios bajo relación de dependencia", order: 0 },
+                  { id: "l7", content: "Empleador: La institución contratante", order: 1 },
+                  { id: "l8", content: "Jornada laboral: El tiempo durante el cual el trabajador está a disposición del empleador", order: 2 },
+                ],
+                order: 0,
+              },
+            ],
+          },
+        ],
+        articles: [],
+      },
+      {
+        id: "ch2",
+        name: "CAPÍTULO II - DE LA ADMISIÓN Y CONTRATACIÓN",
+        order: 1,
+        titles: [
+          {
+            id: "t3",
+            name: "TÍTULO I - Requisitos de Admisión",
+            order: 0,
+            articles: [
+              {
+                id: "a4",
+                number: "Art. 4",
+                content: "Para ser admitido como trabajador de la institución se requiere:",
+                literals: [
+                  { id: "l9", content: "Ser mayor de edad", order: 0 },
+                  { id: "l10", content: "Presentar documentación personal completa", order: 1 },
+                  { id: "l11", content: "Aprobar exámenes médicos y psicológicos", order: 2 },
+                  { id: "l12", content: "No tener antecedentes penales", order: 3 },
+                ],
+                order: 0,
+              },
+              {
+                id: "a5",
+                number: "Art. 5",
+                content: "La documentación requerida para la contratación incluye:",
+                literals: [
+                  { id: "l13", content: "Cédula de identidad vigente", order: 0 },
+                  { id: "l14", content: "Certificados de estudios", order: 1 },
+                  { id: "l15", content: "Certificados de trabajo anteriores", order: 2 },
+                ],
+                order: 1,
+              },
+            ],
+          },
+        ],
+        articles: [],
+      },
+      {
+        id: "ch3",
+        name: "CAPÍTULO III - JORNADA LABORAL Y HORARIOS",
+        order: 2,
+        titles: [],
+        articles: [
+          {
+            id: "a6",
+            number: "Art. 6",
+            content: "La jornada ordinaria de trabajo será de ocho horas diarias y cuarenta horas semanales.",
+            literals: [],
+            order: 0,
+          },
+          {
+            id: "a7",
+            number: "Art. 7",
+            content: "Los horarios de trabajo serán establecidos por la administración según las necesidades operativas.",
+            literals: [
+              { id: "l16", content: "Turno mañana: 8:00 a 12:00 y 14:00 a 18:00", order: 0 },
+              { id: "l17", content: "Turno tarde: 14:00 a 22:00", order: 1 },
+              { id: "l18", content: "Turno noche: 22:00 a 6:00", order: 2 },
+            ],
+            order: 1,
+          },
+        ],
+      },
+      {
+        id: "ch4",
+        name: "CAPÍTULO IV - DERECHOS Y OBLIGACIONES",
+        order: 3,
+        titles: [
+          {
+            id: "t4",
+            name: "TÍTULO I - Derechos de los Trabajadores",
+            order: 0,
+            articles: [
+              {
+                id: "a8",
+                number: "Art. 8",
+                content: "Son derechos de los trabajadores:",
+                literals: [
+                  { id: "l19", content: "Percibir remuneración justa y oportuna", order: 0 },
+                  { id: "l20", content: "Gozar de vacaciones anuales pagadas", order: 1 },
+                  { id: "l21", content: "Recibir capacitación y formación profesional", order: 2 },
+                  { id: "l22", content: "Contar con condiciones de trabajo seguras", order: 3 },
+                ],
+                order: 0,
+              },
+            ],
+          },
+          {
+            id: "t5",
+            name: "TÍTULO II - Obligaciones de los Trabajadores",
+            order: 1,
+            articles: [
+              {
+                id: "a9",
+                number: "Art. 9",
+                content: "Son obligaciones de los trabajadores:",
+                literals: [
+                  { id: "l23", content: "Cumplir con la jornada y horarios de trabajo", order: 0 },
+                  { id: "l24", content: "Desempeñar sus funciones con eficiencia y diligencia", order: 1 },
+                  { id: "l25", content: "Respetar las normas de seguridad y salud ocupacional", order: 2 },
+                  { id: "l26", content: "Mantener la confidencialidad de la información institucional", order: 3 },
+                ],
+                order: 0,
+              },
+            ],
+          },
+        ],
+        articles: [],
+      },
+      {
+        id: "ch5",
+        name: "CAPÍTULO V - RÉGIMEN DISCIPLINARIO",
+        order: 4,
+        titles: [
+          {
+            id: "t6",
+            name: "TÍTULO I - Faltas y Sanciones",
+            order: 0,
+            articles: [
+              {
+                id: "a10",
+                number: "Art. 10",
+                content: "Las faltas disciplinarias se clasifican en leves, graves y muy graves según su naturaleza y consecuencias.",
+                literals: [
+                  { id: "l27", content: "Faltas leves: Amonestación verbal o escrita", order: 0 },
+                  { id: "l28", content: "Faltas graves: Suspensión temporal sin goce de sueldo", order: 1 },
+                  { id: "l29", content: "Faltas muy graves: Despido justificado", order: 2 },
                 ],
                 order: 0,
               },
@@ -72,20 +240,28 @@ const NormativeEditor = () => {
     ],
     articles: [
       {
-        id: "a-standalone",
-        number: "Art. 15",
-        content: "Artículo independiente sin capítulo ni título",
+        id: "a-standalone1",
+        number: "Art. 11",
+        content: "Disposición Transitoria Primera: El presente reglamento entrará en vigencia al día siguiente de su aprobación.",
         literals: [],
         order: 0,
       },
+      {
+        id: "a-standalone2",
+        number: "Art. 12",
+        content: "Disposición Final: Los casos no previstos en el presente reglamento serán resueltos por la administración en coordinación con el área de recursos humanos.",
+        literals: [],
+        order: 1,
+      },
     ],
     versions: [
-      { id: "v1", versionNumber: "1.0", date: "2024-01-15", changes: "Versión inicial" },
-      { id: "v2", versionNumber: "2.0", date: "2024-03-15", changes: "Actualización de artículos laborales" },
+      { id: "v1", versionNumber: "1.0", date: "2024-01-15", changes: "Versión inicial del reglamento" },
+      { id: "v2", versionNumber: "1.1", date: "2024-03-15", changes: "Actualización de artículos laborales y régimen disciplinario" },
+      { id: "v3", versionNumber: "2.0", date: "2025-01-10", changes: "Incorporación de nuevos capítulos y disposiciones transitorias" },
     ],
     currentVersion: "2.0",
     createdAt: "2024-01-15",
-    updatedAt: "2024-03-15",
+    updatedAt: "2025-01-10",
   });
 
   const sensors = useSensors(
@@ -267,6 +443,64 @@ const NormativeEditor = () => {
     // PDF import logic would go here
   };
 
+  const handleNavigate = (id: string, type: "chapter" | "title" | "article") => {
+    // Navigation is handled by the NavigationPanel component
+  };
+
+  // Filter normative based on search query
+  const filteredNormative = useMemo(() => {
+    if (!searchQuery.trim()) return normative;
+
+    const query = searchQuery.toLowerCase();
+    const filtered = { ...normative };
+
+    filtered.chapters = normative.chapters
+      .map((chapter) => {
+        const chapterMatch = chapter.name.toLowerCase().includes(query);
+        
+        const filteredTitles = chapter.titles
+          .map((title) => {
+            const titleMatch = title.name.toLowerCase().includes(query);
+            
+            const filteredArticles = title.articles.filter(
+              (article) =>
+                article.number.toLowerCase().includes(query) ||
+                article.content.toLowerCase().includes(query)
+            );
+
+            if (titleMatch || filteredArticles.length > 0) {
+              return { ...title, articles: titleMatch ? title.articles : filteredArticles };
+            }
+            return null;
+          })
+          .filter((t) => t !== null);
+
+        const filteredChapterArticles = chapter.articles.filter(
+          (article) =>
+            article.number.toLowerCase().includes(query) ||
+            article.content.toLowerCase().includes(query)
+        );
+
+        if (chapterMatch || filteredTitles.length > 0 || filteredChapterArticles.length > 0) {
+          return {
+            ...chapter,
+            titles: chapterMatch ? chapter.titles : filteredTitles,
+            articles: chapterMatch ? chapter.articles : filteredChapterArticles,
+          };
+        }
+        return null;
+      })
+      .filter((ch) => ch !== null);
+
+    filtered.articles = normative.articles.filter(
+      (article) =>
+        article.number.toLowerCase().includes(query) ||
+        article.content.toLowerCase().includes(query)
+    );
+
+    return filtered;
+  }, [normative, searchQuery]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -318,8 +552,21 @@ const NormativeEditor = () => {
 
       <div className="container mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Sidebar - Navigation Panel */}
+          <div className="lg:col-span-1 order-2 lg:order-1">
+            <NavigationPanel
+              chapters={normative.chapters}
+              onNavigate={handleNavigate}
+            />
+          </div>
+
           {/* Main Editor */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-2 order-1 lg:order-2">
+            {/* Search Bar */}
+            <div className="mb-6">
+              <SearchBar value={searchQuery} onChange={setSearchQuery} />
+            </div>
+
             {/* Description */}
             <div className="mb-8">
               <label className="block text-sm font-medium text-foreground mb-2">
@@ -350,7 +597,7 @@ const NormativeEditor = () => {
             >
               <div className="space-y-6 mt-6">
                 {/* Chapters */}
-                {normative.chapters.map((chapter) => (
+                {filteredNormative.chapters.map((chapter) => (
                   <ChapterSection
                     key={chapter.id}
                     chapter={chapter}
@@ -372,7 +619,7 @@ const NormativeEditor = () => {
 
                 {/* Standalone Articles */}
                 <StandaloneArticlesArea 
-                  articles={normative.articles}
+                  articles={filteredNormative.articles}
                   onUpdate={(updated) => {
                     const updatedArticles = normative.articles.map((a) =>
                       a.id === updated.id ? updated : a
@@ -399,8 +646,8 @@ const NormativeEditor = () => {
             </DndContext>
           </div>
 
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
+          {/* Right Sidebar - Version History */}
+          <div className="lg:col-span-1 order-3">
             {showVersionHistory && (
               <VersionHistory
                 versions={normative.versions}

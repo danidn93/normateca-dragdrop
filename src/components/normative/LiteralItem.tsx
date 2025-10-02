@@ -2,6 +2,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { GripVertical, Trash2 } from "lucide-react";
 import { Literal } from "@/types/normative";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface LiteralItemProps {
   literal: Literal;
@@ -21,9 +23,28 @@ export const LiteralItem = ({
   onUpdate,
   onDelete,
 }: LiteralItemProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: literal.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   return (
-    <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
-      <GripVertical className="h-4 w-4 text-muted-foreground" />
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 p-2 bg-muted/30 rounded-md"
+    >
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
       <span className="text-sm font-medium text-legal-literal min-w-[20px]">
         {getLiteralLabel(index)})
       </span>
