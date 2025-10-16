@@ -427,8 +427,10 @@ const NormativeEditor = () => {
     toast.success("Capítulo agregado");
   };
 
-  const addSection = (type: SectionType, parentId?: string) => {
-    const getSectionName = (type: SectionType) => {
+  const addSection = (type: SectionType, parentId?: string, customName?: string) => {
+    const getSectionName = (type: SectionType, customName?: string) => {
+      if (customName) return customName;
+      
       switch (type) {
         case "chapter": return "NUEVO CAPÍTULO";
         case "title": return "NUEVO TÍTULO";
@@ -480,7 +482,7 @@ const NormativeEditor = () => {
       const newNormative = { ...normative };
       const newTitle: Title = {
         id: `t${Date.now()}`,
-        name: getSectionName(type),
+        name: getSectionName(type, customName),
         articles: [],
         order: 0,
       };
@@ -493,7 +495,8 @@ const NormativeEditor = () => {
         return;
       }
     } else {
-      toast.info(`Sección de tipo "${type}" agregada`);
+      const sectionName = getSectionName(type, customName);
+      toast.success(`${sectionName} agregada`);
     }
   };
 
@@ -677,6 +680,7 @@ const NormativeEditor = () => {
               onAddArticle={addStandaloneArticle}
               onAddSection={addSection}
               availableParents={getAvailableParents()}
+              normative={normative}
             />
 
             {/* Document Content */}
