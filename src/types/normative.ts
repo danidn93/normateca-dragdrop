@@ -19,11 +19,20 @@ export interface Title {
   order: number;
 }
 
+export interface Section {
+  id: string;
+  name: string;
+  type: "section" | "part" | "book" | "custom";
+  children: (Chapter | Title | Article | Section)[];
+  order: number;
+}
+
 export interface Chapter {
   id: string;
   name: string;
   titles: Title[];
   articles: Article[];
+  sections: Section[];
   order: number;
 }
 
@@ -46,7 +55,9 @@ export interface Normative {
   updatedAt: string;
 }
 
-export type DragItemType = "chapter" | "title" | "article" | "literal";
+export type DragItemType = "chapter" | "title" | "article" | "literal" | "section";
+
+export type SectionType = "chapter" | "title" | "article" | "section" | "part" | "book" | "custom";
 
 export interface DragItem {
   id: string;

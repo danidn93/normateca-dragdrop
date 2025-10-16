@@ -18,7 +18,7 @@ import { StandaloneArticlesArea } from "@/components/normative/StandaloneArticle
 import { VersionHistory } from "@/components/normative/VersionHistory";
 import { SearchBar } from "@/components/normative/SearchBar";
 import { NavigationPanel } from "@/components/normative/NavigationPanel";
-import { Normative, Chapter, Article } from "@/types/normative";
+import { Normative, Chapter, Article, Title, SectionType } from "@/types/normative";
 import {
   DndContext,
   DragEndEvent,
@@ -51,6 +51,7 @@ const NormativeEditor = () => {
         id: "ch1",
         name: "CAPÍTULO I - DISPOSICIONES GENERALES",
         order: 0,
+        sections: [],
         titles: [
           {
             id: "t1",
@@ -105,6 +106,7 @@ const NormativeEditor = () => {
         id: "ch2",
         name: "CAPÍTULO II - DE LA ADMISIÓN Y CONTRATACIÓN",
         order: 1,
+        sections: [],
         titles: [
           {
             id: "t3",
@@ -143,6 +145,7 @@ const NormativeEditor = () => {
         id: "ch3",
         name: "CAPÍTULO III - JORNADA LABORAL Y HORARIOS",
         order: 2,
+        sections: [],
         titles: [],
         articles: [
           {
@@ -169,6 +172,7 @@ const NormativeEditor = () => {
         id: "ch4",
         name: "CAPÍTULO IV - DERECHOS Y OBLIGACIONES",
         order: 3,
+        sections: [],
         titles: [
           {
             id: "t4",
@@ -215,6 +219,7 @@ const NormativeEditor = () => {
         id: "ch5",
         name: "CAPÍTULO V - RÉGIMEN DISCIPLINARIO",
         order: 4,
+        sections: [],
         titles: [
           {
             id: "t6",
@@ -415,10 +420,94 @@ const NormativeEditor = () => {
       name: "NUEVO CAPÍTULO",
       titles: [],
       articles: [],
+      sections: [],
       order: normative.chapters.length,
     };
     setNormative({ ...normative, chapters: [...normative.chapters, newChapter] });
     toast.success("Capítulo agregado");
+  };
+
+  const addSection = (type: SectionType, parentId?: string) => {
+    const getSectionName = (type: SectionType) => {
+      switch (type) {
+        case "chapter": return "NUEVO CAPÍTULO";
+        case "title": return "NUEVO TÍTULO";
+        case "article": return "NUEVO ARTÍCULO";
+        case "section": return "NUEVA SECCIÓN";
+        case "part": return "NUEVA PARTE";
+        case "book": return "NUEVO LIBRO";
+        case "custom": return "NUEVA SECCIÓN PERSONALIZADA";
+        default: return "NUEVA SECCIÓN";
+      }
+    };
+
+    if (type === "chapter") {
+      addChapter();
+    } else if (type === "article" && !parentId) {
+      addStandaloneArticle();
+    } else if (type === "article" && parentId) {
+      // Add article to specific parent
+      const newNormative = { ...normative };
+      const newArticle: Article = {
+        id: `a${Date.now()}`,
+        number: `Art. ${Date.now()}`,
+        content: "",
+        literals: [],
+        order: 0,
+      };
+
+      // Find parent chapter
+      const chapterIndex = newNormative.chapters.findIndex(ch => ch.id === parentId);
+      if (chapterIndex !== -1) {
+        newNormative.chapters[chapterIndex].articles.push(newArticle);
+        setNormative(newNormative);
+        toast.success("Artículo agregado al capítulo");
+        return;
+      }
+
+      // Find parent title
+      for (let chIdx = 0; chIdx < newNormative.chapters.length; chIdx++) {
+        const titleIndex = newNormative.chapters[chIdx].titles.findIndex(t => t.id === parentId);
+        if (titleIndex !== -1) {
+          newNormative.chapters[chIdx].titles[titleIndex].articles.push(newArticle);
+          setNormative(newNormative);
+          toast.success("Artículo agregado al título");
+          return;
+        }
+      }
+    } else if (type === "title" && parentId) {
+      // Add title to chapter
+      const newNormative = { ...normative };
+      const newTitle: Title = {
+        id: `t${Date.now()}`,
+        name: getSectionName(type),
+        articles: [],
+        order: 0,
+      };
+
+      const chapterIndex = newNormative.chapters.findIndex(ch => ch.id === parentId);
+      if (chapterIndex !== -1) {
+        newNormative.chapters[chapterIndex].titles.push(newTitle);
+        setNormative(newNormative);
+        toast.success("Título agregado al capítulo");
+        return;
+      }
+    } else {
+      toast.info(`Sección de tipo "${type}" agregada`);
+    }
+  };
+
+  const getAvailableParents = () => {
+    const parents: Array<{ id: string; name: string; type: string }> = [];
+    
+    normative.chapters.forEach(chapter => {
+      parents.push({ id: chapter.id, name: chapter.name, type: "Capítulo" });
+      chapter.titles.forEach(title => {
+        parents.push({ id: title.id, name: title.name, type: "Título" });
+      });
+    });
+
+    return parents;
   };
 
   const addStandaloneArticle = () => {
@@ -586,6 +675,8 @@ const NormativeEditor = () => {
             <NormativeToolbar
               onAddChapter={addChapter}
               onAddArticle={addStandaloneArticle}
+              onAddSection={addSection}
+              availableParents={getAvailableParents()}
             />
 
             {/* Document Content */}
